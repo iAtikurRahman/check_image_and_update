@@ -91,17 +91,39 @@ async function updateCorruptedImages(connection, corruptedIds) {
   }
 }
 
-async function isCorrupted(url) {
-  try {
-    const response = await axios.get(url, { responseType: 'arraybuffer' });
-    await sharp(response.data).metadata();
-    // If no error is thrown, the image is not corrupted
-    return false;
-  } catch (error) {
-    console.error('Error checking image:', error.message);
-    return true; // Error occurred, considering it corrupted
+async function isCorrupted(url, retries = 3, delay = 1000) {
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        try {
+          await sharp(response.data).metadata();
+          // If no error is thrown, the image is not corrupted
+          return false;
+        } catch (sharpError) {
+          console.error('Sharp processing error:', sharpError.message);
+          return true; // Error during image processing, considering it corrupted
+        }
+      } catch (axiosError) {
+        if (axiosError.response) {
+          // Server responded with a status code that falls out of the range of 2xx
+          console.error('Axios response error:', axiosError.response.status);
+        } else if (axiosError.request) {
+          // Request was made but no response was received
+          console.error('Axios request error:', axiosError.request);
+        } else {
+          // Something happened in setting up the request that triggered an Error
+          console.error('Axios error:', axiosError.message);
+        }
+        
+        if (attempt < retries - 1) {
+          console.log(`Retrying... (${attempt + 1}/${retries})`);
+          await new Promise(resolve => setTimeout(resolve, delay)); // Wait before retrying
+        } else {
+          return true; // Network error after all retries, considering it corrupted
+        }
+      }
+    }
   }
-}
 
 async function checkImagesBatch(connection, startId) {
   const results = await fetchImagesWithRetry(connection, startId);
