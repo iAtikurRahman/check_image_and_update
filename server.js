@@ -9,7 +9,7 @@ const getMaxId = require('./maxid');
 // Connection with max attempts
 async function connectToDB() {
   let connectionAttempts = 0;
-  const maxAttempts = 7;
+  const maxAttempts = 9;
   let connection;
 
   while (connectionAttempts < maxAttempts) {
@@ -91,7 +91,7 @@ async function updateCorruptedImages(connection, corruptedIds) {
   }
 }
 
-async function isCorrupted(url, retries = 3, delay = 1000) {
+async function isCorrupted(url, retries = 9, delay = 1000) {
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
         const response = await axios.get(url, { responseType: 'arraybuffer' });
